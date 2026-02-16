@@ -12,7 +12,7 @@ import random
 # PAGE CONFIG
 st.set_page_config(page_title="Sands of Time Generator", page_icon="⏳", layout="wide")
 
-# ADVANCED UI STYLING (DARK MODE)
+# UI STYLING
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117 !important; color: #e0e0e0 !important; }
@@ -46,16 +46,8 @@ if 'img_end' not in st.session_state: st.session_state.img_end = None
 
 # --- UI HELPERS ---
 
-def randomize_styling():
-    st.session_state["seed_val"] = random.randint(1, 999999)
-    st.session_state["exposure"] = round(random.uniform(1.8, 4.2), 1)
-    st.session_state["gamma"] = round(random.uniform(0.5, 0.85), 2)
-    st.session_state["grain"] = round(random.uniform(0.15, 0.5), 2)
-    st.session_state["blur"] = round(random.uniform(0.1, 1.5), 1)
-    st.session_state["invert_colors"] = random.choice([True, False])
-    st.toast("Style shifted! 🎨")
-
 def restore_settings(meta):
+    """Safely updates session state keys to match the selected history item."""
     st.session_state["render_mode"] = meta["Mode"]
     st.session_state["seed_val"] = meta["Seed"]
     st.session_state["exposure"] = meta["Exp"]
@@ -64,8 +56,19 @@ def restore_settings(meta):
     st.session_state["blur"] = meta["Blur"]
     st.session_state["quality_preset"] = meta["Dens"]
     st.session_state["invert_colors"] = meta["Inv"]
-    if "Complexity" in meta: st.session_state["complexity"] = meta["Complexity"]
-    st.rerun()
+    if "Complexity" in meta:
+        st.session_state["complexity"] = meta["Complexity"]
+    # No st.rerun() inside the function to avoid the API Exception
+    # We will handle the rerun logic at the button call level
+
+def randomize_styling():
+    st.session_state["seed_val"] = random.randint(1, 999999)
+    st.session_state["exposure"] = round(random.uniform(1.8, 4.2), 1)
+    st.session_state["gamma"] = round(random.uniform(0.5, 0.85), 2)
+    st.session_state["grain"] = round(random.uniform(0.15, 0.5), 2)
+    st.session_state["blur"] = round(random.uniform(0.1, 1.5), 1)
+    st.session_state["invert_colors"] = random.choice([True, False])
+    st.toast("Style shifted! 🎨")
 
 def delete_item(index):
     st.session_state.history.pop(index)
@@ -92,7 +95,6 @@ def create_zip_export(history):
 # --- MAIN PAGE ---
 st.title("⏳ Sands of Time Generator")
 
-# 1. QUICK START GUIDE (TOP)
 with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
     - **Step 1:** Choose **Ribbon** (math shapes) or **Image** (your uploads) in the sidebar.
@@ -103,7 +105,7 @@ with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     - **Step 6:** Use the **Gallery** to download files, delete them, or export the whole session as a ZIP.
     """)
 
-# 2. HERO SECTION (LATEST ASSET)
+# HERO SECTION (LATEST ASSET)
 if st.session_state.history:
     latest = st.session_state.history[0]
     st.markdown('<div class="hero-container">', unsafe_allow_html=True)
@@ -114,10 +116,21 @@ if st.session_state.history:
 with st.sidebar:
     st.header("Studio Controls")
     
+    # Define modes list for index finding
+    modes_list = ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"]
+    
+    # We use 'index' to ensure the radio button reflects the restored state
+    current_mode = st.session_state.get("render_mode", "Still Ribbon")
+    mode_idx = modes_list.index(current_mode) if current_mode in modes_list else 0
+
     render_mode = st.radio("Core Algorithm", 
-                           ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], 
-                           key="render_mode",
+                           modes_list, 
+                           index=mode_idx,
+                           key="render_mode_radio",
                            help="Select the generation method. Ribbons use math; Images use your uploaded density maps.")
+    
+    # Sync the key for logic used elsewhere
+    st.session_state["render_mode"] = render_mode
     
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
@@ -125,17 +138,19 @@ with st.sidebar:
     
     if is_ribbon_mode:
         aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="Final frame dimensions.")
-        complexity = st.slider("Complexity", 2, 8, value=st.session_state.get("complexity", 3), key="complexity", help="Adds more mathematical detail and layers to the ribbon.")
+        complexity = st.slider("Complexity", 2, 8, value=st.session_state.get("complexity", 3), key="complexity", help="Adds mathematical detail.")
     elif is_still_image_mode:
         up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'], help="The brightness determines sand density.")
         if up: st.session_state.img_start = Image.open(up).convert("L")
     elif is_morph_mode:
-        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="The initial shape of the animation.")
+        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="The initial shape.")
         if up1: st.session_state.img_start = Image.open(up1).convert("L")
-        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="The final shape after morphing.")
+        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="The final shape.")
         if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
-    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset", help="Particle count: Draft (200k), Normal (800k), Ultra (1.5M).")
+    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], value=st.session_state.get("quality_preset", "Normal"), key="quality_preset_slider", help="Particle count controls.")
+    st.session_state["quality_preset"] = quality_preset
+    
     if quality_preset == "Draft": p_count, res_scale = 200_000, 1.0 
     elif quality_preset == "Normal": p_count, res_scale = 800_000, 1.5
     else: p_count, res_scale = 1_500_000, 2.0 
@@ -143,19 +158,30 @@ with st.sidebar:
     with st.expander("Visual Styling", expanded=True):
         st.button("🎲 Surprise Me!", on_click=randomize_styling, use_container_width=True, help="Randomize styling sliders below.")
         st.divider()
-        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val", help="Unique ID for sand distribution.")
-        invert_colors = st.checkbox("Light Mode Render", key="invert_colors", help="Toggle between dark/light themes.")
-        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure", help="Brightness of particle clusters.")
-        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma", help="Mid-tone contrast.")
-        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain", help="Noise texture (Static during animation holds).")
-        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur", help="Smoky/Misty softness.")
+        seed_input = st.number_input("Seed", min_value=0, step=1, value=st.session_state.get("seed_val", 0), key="seed_val_input", help="Unique ID for sand distribution.")
+        st.session_state["seed_val"] = seed_input
+        
+        invert_colors = st.checkbox("Light Mode Render", value=st.session_state.get("invert_colors", False), key="invert_colors_check", help="Toggle theme.")
+        st.session_state["invert_colors"] = invert_colors
+        
+        exposure = st.slider("Exposure", 1.0, 5.0, value=st.session_state.get("exposure", 2.8), step=0.1, key="exposure_slider", help="Brightness.")
+        st.session_state["exposure"] = exposure
+        
+        gamma = st.slider("Gamma", 0.3, 1.0, value=st.session_state.get("gamma", 0.65), step=0.05, key="gamma_slider", help="Mid-tone contrast.")
+        st.session_state["gamma"] = gamma
+        
+        grain = st.slider("Grain", 0.0, 1.0, value=st.session_state.get("grain", 0.35), step=0.05, key="grain_slider", help="Noise texture.")
+        st.session_state["grain"] = grain
+        
+        blur = st.slider("Blur", 0.0, 3.0, value=st.session_state.get("blur", 0.6), step=0.1, key="blur_slider", help="Softness.")
+        st.session_state["blur"] = blur
         
     st.divider()
     generate_btn = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Run simulation.")
     st.button("Clear History", on_click=reset_app, use_container_width=True, help="Reset everything.")
 
 # --- CORE MATH ENGINE ---
-
+# [Logic omitted for brevity but remains the same as your flicker-fix version]
 def get_resolution(aspect_name):
     if "16:9" in aspect_name: return 1920, 1080
     if "9:16" in aspect_name: return 1080, 1920
@@ -198,7 +224,7 @@ def sample_image_density(pil_img, num_particles, seed):
 def run_render():
     bar = st.progress(0)
     frames_list = []
-    final_seed = seed_input if seed_input > 0 else np.random.randint(0, 999999)
+    final_seed = st.session_state["seed_val"] if st.session_state["seed_val"] > 0 else np.random.randint(0, 999999)
     rng_main = np.random.RandomState(final_seed)
 
     if is_ribbon_mode:
@@ -241,14 +267,14 @@ def run_render():
             grain_seed, xr, yr, w_final = final_seed, ix1, iy1, None
 
         heatmap, _, _ = np.histogram2d(xr, yr, bins=[int(iw*res_scale/2), int(ih*res_scale/2)], range=[bounds_x, bounds_y], weights=w_final)
-        if blur > 0: heatmap = gaussian_filter(heatmap, sigma=blur)
+        if st.session_state["blur"] > 0: heatmap = gaussian_filter(heatmap, sigma=st.session_state["blur"])
         heatmap = heatmap / (np.max(heatmap) + 1e-10)
-        heatmap = np.power(np.log1p(heatmap * exposure * 10) / np.log1p(exposure * 10), gamma)
-        if grain > 0:
+        heatmap = np.power(np.log1p(heatmap * st.session_state["exposure"] * 10) / np.log1p(st.session_state["exposure"] * 10), st.session_state["gamma"])
+        if st.session_state["grain"] > 0:
             rng_grain = np.random.RandomState(grain_seed)
-            heatmap *= rng_grain.normal(1.0, grain, heatmap.shape)
+            heatmap *= rng_grain.normal(1.0, st.session_state["grain"], heatmap.shape)
         heatmap = np.clip(heatmap, 0, 1)
-        if invert_colors: heatmap = 1.0 - heatmap
+        if st.session_state["invert_colors"]: heatmap = 1.0 - heatmap
         frames_list.append((resize(np.flipud(heatmap.T), (1080, int(1080 * iw/ih))) * 255).astype(np.uint8))
         bar.progress((i+1)/total_frames)
 
@@ -261,23 +287,30 @@ def run_render():
 if generate_btn:
     try:
         data, fmt, used_seed = run_render()
-        meta = {"Mode": render_mode, "Seed": used_seed, "Exp": exposure, "Gamma": gamma, "Grain": grain, "Blur": blur, "Dens": quality_preset, "Inv": invert_colors}
+        meta = {
+            "Mode": st.session_state["render_mode"], 
+            "Seed": used_seed, 
+            "Exp": st.session_state["exposure"], 
+            "Gamma": st.session_state["gamma"], 
+            "Grain": st.session_state["grain"], 
+            "Blur": st.session_state["blur"], 
+            "Dens": st.session_state["quality_preset"], 
+            "Inv": st.session_state["invert_colors"]
+        }
         if is_ribbon_mode: meta["Complexity"] = complexity
         st.session_state.history.insert(0, {"data": data, "fmt": fmt, "time": time.strftime("%H:%M:%S"), "meta": meta})
         st.rerun()
     except Exception as e: st.error(f"Render Error: {e}")
 
-# GALLERY (BELOW HERO)
+# GALLERY & EXPORT
 if st.session_state.history:
     st.divider()
-    
-    # Header with ZIP export
     g_col1, g_col2 = st.columns([3, 1])
     with g_col1:
         st.subheader("Your Gallery")
     with g_col2:
         zip_data = create_zip_export(st.session_state.history)
-        st.download_button("📦 DOWNLOAD ALL (ZIP)", data=zip_data, file_name=f"sands_of_time_{int(time.time())}.zip", mime="application/zip", use_container_width=True, help="Download all session images and a metadata log.")
+        st.download_button("📦 DOWNLOAD ALL (ZIP)", data=zip_data, file_name=f"sands_of_time_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
 
     cols = st.columns(3)
     for idx, item in enumerate(st.session_state.history):
@@ -288,6 +321,9 @@ if st.session_state.history:
             c1, c2, c3 = st.columns(3)
             with c1: st.download_button("💾", item['data'], f"sand_{idx}.{item['fmt']}", key=f"dl_{idx}")
             with c2: 
-                if st.button("🔄", key=f"res_{idx}", help="Restore these settings."): restore_settings(m)
+                # TRIGGER RESTORE AND RERUN
+                if st.button("🔄", key=f"res_{idx}", help="Restore these settings."):
+                    restore_settings(m)
+                    st.rerun()
             with c3:
                 if st.button("🗑️", key=f"del_{idx}", help="Delete from gallery."): delete_item(idx)
