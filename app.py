@@ -28,6 +28,12 @@ st.markdown("""
         border-radius: 6px !important; border: none !important; transition: all 0.2s ease;
     }
     div.stButton > button:hover { background-color: #2ea043 !important; transform: translateY(-1px); }
+    /* Style for the secondary buttons */
+    .stButton > button[kind="secondary"] {
+        background-color: #30363d !important;
+        color: #c9d1d9 !important;
+        border: 1px solid #484f58 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,19 +44,15 @@ if 'img_end' not in st.session_state: st.session_state.img_end = None
 
 # --- UI HELPERS ---
 
-def randomize_settings():
-    modes = ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"]
-    st.session_state["render_mode"] = random.choice(modes)
+def randomize_styling():
+    # Only randomizes Visual Styling parameters
     st.session_state["seed_val"] = random.randint(1, 999999)
     st.session_state["exposure"] = round(random.uniform(1.8, 4.2), 1)
     st.session_state["gamma"] = round(random.uniform(0.5, 0.85), 2)
     st.session_state["grain"] = round(random.uniform(0.15, 0.5), 2)
-    st.session_state["blur"] = round(random.uniform(0.2, 1.2), 1)
-    st.session_state["quality_preset"] = random.choice(["Draft", "Normal"])
+    st.session_state["blur"] = round(random.uniform(0.1, 1.5), 1)
     st.session_state["invert_colors"] = random.choice([True, False])
-    if "complexity" in st.session_state:
-        st.session_state["complexity"] = random.randint(3, 6)
-    st.toast("The sands have shifted! 🎲")
+    st.toast("Style shifted! 🎨")
 
 def restore_settings(meta):
     st.session_state["render_mode"] = meta["Mode"]
@@ -89,26 +91,22 @@ def create_zip_export(history):
 # --- MAIN PAGE HEADER ---
 st.title("⏳ Sands of Time Generator")
 
-with st.expander("📖 Comprehensive Quick Start Guide", expanded=True):
+with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
     1. **Choose Algorithm:** Select **Ribbon** for math-based art or **Image** to process your own photos.
-    2. **Upload Sources:** If in 'Image' mode, upload one or two (for Morph) files. Brighter pixels = denser sand.
+    2. **Upload Sources:** If in 'Image' mode, upload source files. Brighter pixels = denser sand.
     3. **Set Density:** 'Draft' uses 200k particles (fast), 'Ultra' uses 1.5M (best for final high-res frames).
-    4. **Look Development:**
+    4. **Visual Styling:**
+        - Use **🎲 Surprise Me!** inside the Styling section to quickly cycle through look variations.
         - **Exposure/Gamma:** Control how light 'hits' the sand.
-        - **Grain:** Adds organic texture. Our logic ensures it stays static during animation holds.
-        - **Blur:** Softens particles into a smoky or ethereal appearance.
-    5. **Render & Manage:** Hit **EXECUTE RENDER**. View results in the gallery. Use **Restore (🔄)** to bring back old settings, or **Export** to save your whole session as a ZIP.
+        - **Grain:** Adds organic texture (Static during animation holds).
+    5. **Render:** Hit **EXECUTE RENDER**. View results in the gallery.
     """)
 
 # SIDEBAR
 with st.sidebar:
     st.header("Studio Controls")
     
-    st.button("🎲 Surprise Me!", on_click=randomize_settings, use_container_width=True, 
-              help="Randomizes all settings to help you find unique aesthetic combinations.")
-    st.divider()
-
     render_mode = st.radio("Core Algorithm", 
                            ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], 
                            key="render_mode",
@@ -121,14 +119,14 @@ with st.sidebar:
     if is_ribbon_mode:
         aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="The final dimensions of the image or GIF.")
         complexity = st.slider("Complexity", 2, 8, value=st.session_state.get("complexity", 3), key="complexity", 
-                               help="Higher values add more mathematical 'octaves' creating more intricate folds.")
+                               help="Higher values create more intricate mathematical folds.")
     elif is_still_image_mode:
         up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'], help="Upload an image to convert it into sand particles.")
         if up: st.session_state.img_start = Image.open(up).convert("L")
     elif is_morph_mode:
-        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="The initial shape of the sand.")
+        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="The initial shape.")
         if up1: st.session_state.img_start = Image.open(up1).convert("L")
-        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="The shape the sand will drift into.")
+        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="The shape the sand drifts into.")
         if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
     quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset", 
@@ -138,19 +136,23 @@ with st.sidebar:
     else: p_count, res_scale = 1_500_000, 2.0 
         
     with st.expander("Visual Styling", expanded=True):
+        st.button("🎲 Surprise Me!", on_click=randomize_styling, use_container_width=True, 
+                  help="Randomizes the Seed, Exposure, Gamma, Grain, and Blur for quick style iteration.")
+        st.divider()
         seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val", 
-                                     help="The unique ID for the randomizer. Use the same seed to reproduce a shape you like.")
+                                     help="The unique ID for the randomizer.")
         invert_colors = st.checkbox("Light Mode Render", key="invert_colors", help="Switch between light sand on dark, or dark sand on light.")
-        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure", help="Increases the brightness of particle clusters.")
-        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma", help="Adjusts the mid-tones and contrast falloff.")
-        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain", help="Adds organic noise. Flicker-free logic is active for animations.")
-        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur", help="Softens the particles into a smoky texture.")
+        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure", help="Brightness of particle clusters.")
+        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma", help="Mid-tone contrast falloff.")
+        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain", help="Organic noise texture.")
+        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur", help="Softness of the particles.")
         
     st.divider()
-    generate_btn = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Starts the math engine to generate your sand art.")
-    st.button("Clear History", on_click=reset_app, use_container_width=True, help="Deletes all history items and resets uploads.")
+    generate_btn = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Starts the render engine.")
+    st.button("Clear History", on_click=reset_app, use_container_width=True, help="Deletes all gallery history.")
 
 # --- CORE MATH ENGINE ---
+# Logic remains optimized for the 1s flicker-free hold at start and end of morphs.
 
 def get_resolution(aspect_name):
     if "16:9" in aspect_name: return 1920, 1080
