@@ -128,7 +128,6 @@ def run_render():
     bar = st.progress(0)
     frames_list = []
     
-    # Handle Seed
     final_seed = seed_val if seed_val > 0 else np.random.randint(0, 999999)
     rng_main = np.random.RandomState(final_seed)
 
@@ -152,7 +151,26 @@ def run_render():
 
     for i in range(total_frames):
         prog = i / total_frames if total_frames > 1 else 0.0
-        if is_ribbon_mode:
+        
+        # --- GRAIN SEED LOGIC ---
+        # Fixed seeds for the 1s (25 frame) holds to prevent flickering
+        if is_morph_mode:
+            if i < 25:
+                grain_seed = final_seed
+                t_m, noise = 0.0, 0.0
+            elif i > 100:
+                grain_seed = final_seed + 9999
+                t_m, noise = 1.0, 0.0
+            else:
+                grain_seed = final_seed + i  # Dynamic grain during movement
+                tp = (i - 25) / 75
+                t_m = (1 - np.cos(tp * np.pi)) / 2
+                noise = np.sin(tp * np.pi) * 4.0
+            
+            xr, yr, w_final = ix1*(1-t_m) + ix2*t_m + rng_main.normal(0, noise, p_count), iy1*(1-t_m) + iy2*t_m + rng_main.normal(0, noise, p_count), None
+        
+        elif is_ribbon_mode:
+            grain_seed = final_seed + i
             xs, ys, zs = calc_ribbon_spine(t_vals, dna, prog)
             x, y, z = xs + sx*thickness, ys + sy*thickness, zs + sz*thickness
             tx, ty = dna['tilt_x'], dna['tilt_y']
@@ -160,22 +178,21 @@ def run_render():
             zr_r = y * np.sin(tx) + z * np.cos(tx)
             xr, yr = x * np.cos(ty) + zr_r * np.sin(ty), yr_r
             w_final = np.exp(-(zr_r - zr_r.min()) / (zr_r.max() - zr_r.min() + 1e-6) * 1.5)
-        elif is_morph_mode:
-            if i < 25: t_m, noise = 0.0, 0.0
-            elif i > 100: t_m, noise = 1.0, 0.0
-            else:
-                tp = (i - 25) / 75
-                t_m = (1 - np.cos(tp * np.pi)) / 2
-                noise = np.sin(tp * np.pi) * 4.0
-            xr, yr, w_final = ix1*(1-t_m) + ix2*t_m + rng_main.normal(0, noise, p_count), iy1*(1-t_m) + iy2*t_m + rng_main.normal(0, noise, p_count), None
         else:
+            grain_seed = final_seed
             xr, yr, w_final = ix1, iy1, None
 
+        # Render Heatmap
         heatmap, _, _ = np.histogram2d(xr, yr, bins=[int(iw*res_scale/2), int(ih*res_scale/2)], range=[bounds_x, bounds_y], weights=w_final)
         if blur > 0: heatmap = gaussian_filter(heatmap, sigma=blur)
         heatmap = heatmap / (np.max(heatmap) + 1e-10)
         heatmap = np.power(np.log1p(heatmap * exposure * 10) / np.log1p(exposure * 10), gamma)
-        if grain > 0: heatmap *= rng_main.normal(1.0, grain, heatmap.shape)
+        
+        # Apply Grain with the specific grain_seed
+        if grain > 0:
+            rng_grain = np.random.RandomState(grain_seed)
+            heatmap *= rng_grain.normal(1.0, grain, heatmap.shape)
+            
         heatmap = np.clip(heatmap, 0, 1)
         if invert_colors: heatmap = 1.0 - heatmap
         
