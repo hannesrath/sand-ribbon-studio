@@ -12,7 +12,7 @@ import random
 # PAGE CONFIG
 st.set_page_config(page_title="Sands of Time Generator", page_icon="⏳", layout="wide")
 
-# ADVANCED UI STYLING (DARK MODE)
+# UI STYLING
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117 !important; color: #e0e0e0 !important; }
@@ -29,33 +29,39 @@ st.markdown("""
         margin-top: 1rem;
         margin-bottom: 2rem;
         background-color: #000000;
-        min-height: 200px;
+        min-height: 300px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
     }
     h1, h2, h3 { color: #ffffff !important; font-weight: 700 !important; }
     div.stButton > button {
         background-color: #238636 !important; color: white !important;
-        border-radius: 6px !important; border: none !important; transition: all 0.2s ease;
+        border-radius: 6px !important; border: none !important;
     }
-    div.stButton > button:hover { background-color: #2ea043 !important; transform: translateY(-1px); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SESSION STATE DEFAULTS ---
+# --- SESSION STATE INITIALIZATION ---
 if 'history' not in st.session_state: st.session_state.history = []
 if 'img_start' not in st.session_state: st.session_state.img_start = None
 if 'img_end' not in st.session_state: st.session_state.img_end = None
-if 'rendering' not in st.session_state: st.session_state.rendering = False
 
-# Widget-linked keys
-keys = ['render_mode_radio', 'seed_val_input', 'exposure_slider', 'gamma_slider', 
-        'grain_slider', 'blur_slider', 'invert_colors_check', 'complexity_slider', 'quality_preset_slider']
-defaults = ["Still Ribbon", 0, 2.8, 0.65, 0.35, 0.6, False, 3, "Normal"]
-
-for key, default in zip(keys, defaults):
-    if key not in st.session_state: st.session_state[key] = default
+# Default Widget Values
+keys_defaults = {
+    'render_mode_radio': "Still Ribbon",
+    'seed_val_input': 0,
+    'exposure_slider': 2.8,
+    'gamma_slider': 0.65,
+    'grain_slider': 0.35,
+    'blur_slider': 0.6,
+    'invert_colors_check': False,
+    'complexity_slider': 3,
+    'quality_preset_slider': "Normal"
+}
+for key, val in keys_defaults.items():
+    if key not in st.session_state: st.session_state[key] = val
 
 # --- CALLBACKS ---
 
@@ -79,31 +85,24 @@ def callback_restore(meta):
     st.session_state['invert_colors_check'] = meta["Inv"]
     if "Complexity" in meta: st.session_state['complexity_slider'] = meta["Complexity"]
 
-def start_render():
-    st.session_state.rendering = True
+def reset_app():
+    st.session_state.img_start = None
+    st.session_state.img_end = None
+    st.session_state.history = []
+    st.rerun()
 
 # --- MAIN PAGE ---
 st.title("⏳ Sands of Time Generator")
 
 with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
-    - **Step 1:** Choose **Ribbon** or **Image** modes in the sidebar.
-    - **Step 2:** Set **Density**. Draft is fast; Ultra is high quality.
-    - **Step 3:** Hit **EXECUTE RENDER**. The preview area will show progress.
+    - **Selection:** Choose **Ribbon** (math) or **Image** (uploads) in the sidebar.
+    - **Execute Render:** The preview area will show progress and then display your result.
+    - **Restore:** Click the 🔄 icon in the gallery to reload a previous look.
     """)
 
-# --- UNIFIED PREVIEW / STATUS AREA ---
+# PREVIEW AREA PLACEHOLDER
 preview_placeholder = st.empty()
-
-with preview_placeholder.container():
-    if st.session_state.rendering:
-        # This area is overwritten by the progress bar during render
-        st.markdown('<div class="hero-container">Rendering the Sands of Time...</div>', unsafe_allow_html=True)
-    elif st.session_state.history:
-        latest = st.session_state.history[0]
-        st.markdown('<div class="hero-container">', unsafe_allow_html=True)
-        st.image(latest['data'], use_container_width=True, caption=f"Last Render: {latest['meta']['Mode']}")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # SIDEBAR
 with st.sidebar:
@@ -112,7 +111,7 @@ with st.sidebar:
     render_mode = st.radio("Core Algorithm", 
                            ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], 
                            key="render_mode_radio",
-                           help="Procedural math ribbons or density-based image morphing.")
+                           help="Select the generation method.")
     
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
@@ -135,9 +134,9 @@ with st.sidebar:
     res_scale = 1.0 if quality_preset == "Draft" else 1.5 if quality_preset == "Normal" else 2.0
         
     with st.expander("Visual Styling", expanded=True):
-        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True, help="Randomize style parameters.")
+        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True)
         st.divider()
-        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input", help="Unique ID for sand distribution.")
+        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input")
         invert_colors = st.checkbox("Light Mode Render", key="invert_colors_check")
         exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure_slider")
         gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma_slider")
@@ -145,35 +144,115 @@ with st.sidebar:
         blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur_slider")
         
     st.divider()
-    # Execute button triggers the flag
-    if st.button("EXECUTE RENDER", type="primary", use_container_width=True, on_click=start_render):
-        pass
+    execute_render = st.button("EXECUTE RENDER", type="primary", use_container_width=True)
+    st.button("Clear History", on_click=reset_app, use_container_width=True)
 
-# --- RENDER LOGIC ---
-if st.session_state.rendering:
-    try:
-        # Use the placeholder to show progress
-        with preview_placeholder.container():
-            st.markdown('<div class="hero-container">', unsafe_allow_html=True)
-            bar = st.progress(0, text="Simulating Physics...")
+# --- RENDER EXECUTION ---
+if execute_render:
+    with preview_placeholder.container():
+        st.markdown('<div class="hero-container">', unsafe_allow_html=True)
+        bar = st.progress(0, text="Simulating Sands of Time...")
+        
+        # --- RENDER LOGIC START ---
+        frames_list = []
+        final_seed = seed_input if seed_input > 0 else np.random.randint(0, 999999)
+        rng_main = np.random.RandomState(final_seed)
+
+        if is_ribbon_mode:
+            # Ribbon Math logic
+            import math
+            def generate_dna(c, s):
+                np.random.seed(s)
+                p = []
+                sc = np.random.uniform(1.8, 2.5)
+                for i in range(1, c + 1):
+                    p.append({'freq': i, 'amp_a': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'amp_b': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'phases': np.random.uniform(0, 2*np.pi, 3)})
+                return p
             
-            # (Math Engine Logic Placeholder - run_render function content)
-            # This is where your existing render logic runs, updating 'bar'
-            # For brevity in this response, assume we call your existing run_render logic here
-            # ...
-            
-            # After render finishes:
-            # data, fmt, used_seed = run_render()
-            # st.session_state.history.insert(0, {"data": data, "fmt": fmt, ...})
-            
-            st.session_state.rendering = False
-            st.rerun()
-    except Exception as e:
-        st.error(f"Render Error: {e}")
-        st.session_state.rendering = False
+            width, height = (1920, 1080) if "16:9" in aspect_ratio else (1080, 1920) if "9:16" in aspect_ratio else (1080, 1080)
+            dna = generate_dna(complexity, final_seed)
+            t_vals = rng_main.rand(p_count) * 2 * np.pi
+            total_frames = 100 if "Animation" in render_mode else 1
+            bounds_x, bounds_y = [-5, 5], [-5, 5]
+            iw, ih = width, height
+            sx, sy, sz = [rng_main.normal(0, 0.15, p_count) for _ in range(3)]
+        elif is_morph_mode or is_still_image_mode:
+            # Image sampling logic
+            def sample_img(pil_img, n, s):
+                arr = np.power(np.array(pil_img).astype(float) / 255.0, 2.0)
+                total = np.sum(arr)
+                cdf = np.cumsum(arr.flatten()) / total
+                indices = np.searchsorted(cdf, np.random.RandomState(s).rand(n))
+                y, x = np.unravel_index(indices, arr.shape)
+                return x.astype(float), (arr.shape[0] - y.astype(float)), pil_img.width, pil_img.height
+
+            ix1, iy1, iw, ih = sample_img(st.session_state.img_start, p_count, final_seed)
+            if is_morph_mode:
+                ix2, iy2, _, _ = sample_img(st.session_state.img_end.resize(st.session_state.img_start.size), p_count, final_seed + 1)
+                total_frames, bounds_x, bounds_y = 125, [0, iw], [0, ih]
+            else:
+                total_frames, bounds_x, bounds_y = 1, [0, iw], [0, ih]
+
+        for i in range(total_frames):
+            prog = i / total_frames if total_frames > 1 else 0.0
+            if is_ribbon_mode:
+                # Calculate ribbon positions
+                x, y, z = np.zeros_like(t_vals), np.zeros_like(t_vals), np.zeros_like(t_vals)
+                for l in dna:
+                    x += (l['amp_a'][0] * np.cos(prog*2*np.pi) + l['amp_b'][0] * np.sin(prog*2*np.pi)) * np.cos(l['freq'] * t_vals + l['phases'][0])
+                    y += (l['amp_a'][1] * np.cos(prog*2*np.pi) + l['amp_b'][1] * np.sin(prog*2*np.pi)) * np.sin(l['freq'] * t_vals + l['phases'][1])
+                    z += (l['amp_a'][2] * np.cos(prog*2*np.pi) + l['amp_b'][2] * np.sin(prog*2*np.pi)) * np.cos(l['freq'] * t_vals + l['phases'][2])
+                xr, yr = x, y # Simple projection
+                grain_seed, w_final = final_seed + i, None
+            elif is_morph_mode:
+                if i < 25: grain_seed, tm, n = final_seed, 0.0, 0.0
+                elif i > 100: grain_seed, tm, n = final_seed + 999, 1.0, 0.0
+                else:
+                    grain_seed, tp = final_seed + i, (i - 25) / 75
+                    tm, n = (1 - np.cos(tp * np.pi)) / 2, np.sin(tp * np.pi) * 4.0
+                xr, yr, w_final = ix1*(1-tm) + ix2*tm + rng_main.normal(0, n, p_count), iy1*(1-tm) + iy2*tm + rng_main.normal(0, n, p_count), None
+            else:
+                xr, yr, grain_seed, w_final = ix1, iy1, final_seed, None
+
+            # Render heatmap
+            h_map, _, _ = np.histogram2d(xr, yr, bins=[int(iw*res_scale/2), int(ih*res_scale/2)], range=[bounds_x, bounds_y], weights=w_final)
+            if blur > 0: h_map = gaussian_filter(h_map, sigma=blur)
+            h_map = np.power(h_map / (np.max(h_map) + 1e-10), gamma)
+            if grain > 0: h_map *= np.random.RandomState(grain_seed).normal(1.0, grain, h_map.shape)
+            h_map = np.clip(h_map, 0, 1)
+            if invert_colors: h_map = 1.0 - h_map
+            frames_list.append((resize(h_map.T, (1080, int(1080 * iw/ih))) * 255).astype(np.uint8))
+            bar.progress((i+1)/total_frames)
+
+        # Finalize asset
+        b = io.BytesIO()
+        if len(frames_list) > 1: imageio.mimsave(b, frames_list, format='GIF', fps=25, loop=0); fmt = "gif"
+        else: imageio.imwrite(b, frames_list[0], format='PNG'); fmt = "png"
+        
+        meta = {"Mode": render_mode, "Seed": final_seed, "Exp": exposure, "Gamma": gamma, "Grain": grain, "Blur": blur, "Dens": quality_preset, "Inv": invert_colors}
+        st.session_state.history.insert(0, {"data": b.getvalue(), "fmt": fmt, "time": time.strftime("%H:%M:%S"), "meta": meta})
+        # --- RENDER LOGIC END ---
+        
+        st.rerun()
+
+# DISPLAY HERO (If not rendering)
+elif st.session_state.history:
+    latest = st.session_state.history[0]
+    with preview_placeholder.container():
+        st.markdown('<div class="hero-container">', unsafe_allow_html=True)
+        st.image(latest['data'], use_container_width=True, caption=f"Latest: {latest['meta']['Mode']} | {latest['time']}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- GALLERY ---
-if st.session_state.history and not st.session_state.rendering:
+if st.session_state.history:
     st.divider()
-    st.subheader("Your Gallery")
-    # ... (Standard Gallery display logic)
+    cols = st.columns(3)
+    for idx, item in enumerate(st.session_state.history):
+        with cols[idx % 3]:
+            st.image(item['data'], use_container_width=True)
+            m = item['meta']
+            st.markdown(f"""<div class="metadata-card"><b>{m['Mode']}</b><br>Seed: {m['Seed']}</div>""", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            with c1: st.download_button("💾", item['data'], f"sand_{idx}.{item['fmt']}", key=f"dl_{idx}")
+            with c2: st.button("🔄", key=f"res_{idx}", on_click=callback_restore, args=(m,))
+            with c3: st.button("🗑️", key=f"del_{idx}", on_click=lambda i=idx: (st.session_state.history.pop(i), st.rerun()))
