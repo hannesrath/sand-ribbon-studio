@@ -22,13 +22,19 @@ st.markdown("""
         padding: 15px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
         font-size: 0.85rem; color: #bdc1c6; margin-bottom: 10px; backdrop-filter: blur(5px);
     }
+    .hero-container {
+        border-radius: 15px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 2rem;
+        background-color: #000000;
+    }
     h1, h2, h3 { color: #ffffff !important; font-weight: 700 !important; }
     div.stButton > button {
         background-color: #238636 !important; color: white !important;
         border-radius: 6px !important; border: none !important; transition: all 0.2s ease;
     }
     div.stButton > button:hover { background-color: #2ea043 !important; transform: translateY(-1px); }
-    /* Style for the secondary buttons */
     .stButton > button[kind="secondary"] {
         background-color: #30363d !important;
         color: #c9d1d9 !important;
@@ -45,7 +51,6 @@ if 'img_end' not in st.session_state: st.session_state.img_end = None
 # --- UI HELPERS ---
 
 def randomize_styling():
-    # Only randomizes Visual Styling parameters
     st.session_state["seed_val"] = random.randint(1, 999999)
     st.session_state["exposure"] = round(random.uniform(1.8, 4.2), 1)
     st.session_state["gamma"] = round(random.uniform(0.5, 0.85), 2)
@@ -91,16 +96,23 @@ def create_zip_export(history):
 # --- MAIN PAGE HEADER ---
 st.title("⏳ Sands of Time Generator")
 
+# --- NEW HERO SECTION (LATEST ASSET) ---
+if st.session_state.history:
+    latest = st.session_state.history[0]
+    st.markdown('<div class="hero-container">', unsafe_allow_html=True)
+    st.image(latest['data'], use_container_width=True, caption=f"Latest Result: {latest['meta']['Mode']} at {latest['time']}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
     1. **Choose Algorithm:** Select **Ribbon** for math-based art or **Image** to process your own photos.
     2. **Upload Sources:** If in 'Image' mode, upload source files. Brighter pixels = denser sand.
     3. **Set Density:** 'Draft' uses 200k particles (fast), 'Ultra' uses 1.5M (best for final high-res frames).
     4. **Visual Styling:**
-        - Use **🎲 Surprise Me!** inside the Styling section to quickly cycle through look variations.
+        - Use **🎲 Surprise Me!** inside the Styling section to cycle look variations.
         - **Exposure/Gamma:** Control how light 'hits' the sand.
-        - **Grain:** Adds organic texture (Static during animation holds).
-    5. **Render:** Hit **EXECUTE RENDER**. View results in the gallery.
+        - **Grain:** Adds organic texture (Flicker-free during animation holds).
+    5. **Render:** Hit **EXECUTE RENDER**. The result will appear in **Full Size** above.
     """)
 
 # SIDEBAR
@@ -110,49 +122,44 @@ with st.sidebar:
     render_mode = st.radio("Core Algorithm", 
                            ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], 
                            key="render_mode",
-                           help="Ribbons are procedurally generated math shapes. Image modes use your uploads as a density map.")
+                           help="Ribbons are procedurally generated math shapes. Image modes use uploads as a density map.")
     
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
     is_still_image_mode = render_mode == "Image to Sand (Still)"
     
     if is_ribbon_mode:
-        aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="The final dimensions of the image or GIF.")
-        complexity = st.slider("Complexity", 2, 8, value=st.session_state.get("complexity", 3), key="complexity", 
-                               help="Higher values create more intricate mathematical folds.")
+        aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0)
+        complexity = st.slider("Complexity", 2, 8, value=st.session_state.get("complexity", 3), key="complexity")
     elif is_still_image_mode:
-        up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'], help="Upload an image to convert it into sand particles.")
+        up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'])
         if up: st.session_state.img_start = Image.open(up).convert("L")
     elif is_morph_mode:
-        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="The initial shape.")
+        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1")
         if up1: st.session_state.img_start = Image.open(up1).convert("L")
-        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="The shape the sand drifts into.")
+        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2")
         if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
-    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset", 
-                                      help="Controls the total number of particles simulated. Draft = 200k, Ultra = 1.5M.")
+    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset")
     if quality_preset == "Draft": p_count, res_scale = 200_000, 1.0 
     elif quality_preset == "Normal": p_count, res_scale = 800_000, 1.5
     else: p_count, res_scale = 1_500_000, 2.0 
         
     with st.expander("Visual Styling", expanded=True):
-        st.button("🎲 Surprise Me!", on_click=randomize_styling, use_container_width=True, 
-                  help="Randomizes the Seed, Exposure, Gamma, Grain, and Blur for quick style iteration.")
+        st.button("🎲 Surprise Me!", on_click=randomize_styling, use_container_width=True)
         st.divider()
-        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val", 
-                                     help="The unique ID for the randomizer.")
-        invert_colors = st.checkbox("Light Mode Render", key="invert_colors", help="Switch between light sand on dark, or dark sand on light.")
-        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure", help="Brightness of particle clusters.")
-        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma", help="Mid-tone contrast falloff.")
-        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain", help="Organic noise texture.")
-        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur", help="Softness of the particles.")
+        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val")
+        invert_colors = st.checkbox("Light Mode Render", key="invert_colors")
+        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure")
+        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma")
+        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain")
+        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur")
         
     st.divider()
-    generate_btn = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Starts the render engine.")
-    st.button("Clear History", on_click=reset_app, use_container_width=True, help="Deletes all gallery history.")
+    generate_btn = st.button("EXECUTE RENDER", type="primary", use_container_width=True)
+    st.button("Clear History", on_click=reset_app, use_container_width=True)
 
 # --- CORE MATH ENGINE ---
-# Logic remains optimized for the 1s flicker-free hold at start and end of morphs.
 
 def get_resolution(aspect_name):
     if "16:9" in aspect_name: return 1920, 1080
@@ -270,12 +277,14 @@ if st.session_state.history:
     st.divider()
     g_col1, g_col2 = st.columns([3, 1])
     with g_col1:
-        st.subheader("Your Gallery")
+        st.subheader("Session History")
     with g_col2:
         zip_data = create_zip_export(st.session_state.history)
         st.download_button("📦 DOWNLOAD ALL (ZIP)", data=zip_data, file_name=f"sands_of_time_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
 
     cols = st.columns(3)
+    # We slice [1:] if you want to skip the hero image in the gallery list, 
+    # but usually users like to see it there too for consistency.
     for idx, item in enumerate(st.session_state.history):
         with cols[idx % 3]:
             st.image(item['data'], use_container_width=True)
