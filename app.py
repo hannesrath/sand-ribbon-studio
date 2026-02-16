@@ -12,7 +12,7 @@ import random
 # PAGE CONFIG
 st.set_page_config(page_title="Sands of Time Generator", page_icon="⏳", layout="wide")
 
-# UI STYLING
+# UI STYLING (DARK MODE)
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117 !important; color: #e0e0e0 !important; }
@@ -29,7 +29,7 @@ st.markdown("""
         margin-top: 1rem;
         margin-bottom: 2rem;
         background-color: #000000;
-        min-height: 300px;
+        min-height: 400px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -67,12 +67,12 @@ for key, val in keys_defaults.items():
 
 def callback_randomize():
     st.session_state['seed_val_input'] = random.randint(1, 999999)
-    st.session_state['exposure_slider'] = round(random.uniform(1.8, 4.2), 1)
-    st.session_state['gamma_slider'] = round(random.uniform(0.5, 0.85), 2)
-    st.session_state['grain_slider'] = round(random.uniform(0.15, 0.5), 2)
-    st.session_state['blur_slider'] = round(random.uniform(0.1, 1.5), 1)
-    st.session_state['invert_colors_check'] = random.choice([True, False])
-    st.toast("Style shifted! 🎨")
+    st.session_state['exposure_slider'] = round(random.uniform(2.0, 4.5), 1)
+    st.session_state['gamma_slider'] = round(random.uniform(0.5, 0.8), 2)
+    st.session_state['grain_slider'] = round(random.uniform(0.2, 0.5), 2)
+    st.session_state['blur_slider'] = round(random.uniform(0.4, 1.2), 1)
+    st.session_state['invert_colors_check'] = False
+    st.toast("Aesthetic Shifted! 🎨")
 
 def callback_restore(meta):
     st.session_state['render_mode_radio'] = meta["Mode"]
@@ -96,12 +96,12 @@ st.title("⏳ Sands of Time Generator")
 
 with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
-    - **Selection:** Choose **Ribbon** (math) or **Image** (uploads) in the sidebar.
-    - **Execute Render:** The preview area will show progress and then display your result.
-    - **Restore:** Click the 🔄 icon in the gallery to reload a previous look.
+    - **Selection:** Choose **Ribbon** or **Image** modes.
+    - **Exposure:** Control the 'glow'. Higher values make the sand clusters shine brighter.
+    - **Gamma:** Control the 'density' falloff. Lower values make the sand look mistier.
+    - **Surprise Me:** Randomizes visuals inside the Styling section.
     """)
 
-# PREVIEW AREA PLACEHOLDER
 preview_placeholder = st.empty()
 
 # SIDEBAR
@@ -110,8 +110,7 @@ with st.sidebar:
     
     render_mode = st.radio("Core Algorithm", 
                            ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], 
-                           key="render_mode_radio",
-                           help="Select the generation method.")
+                           key="render_mode_radio", help="Select the generation method.")
     
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
@@ -119,7 +118,7 @@ with st.sidebar:
     
     if is_ribbon_mode:
         aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0)
-        complexity = st.slider("Complexity", 2, 8, key="complexity_slider")
+        complexity = st.slider("Complexity", 2, 8, key="complexity_slider", help="Detailed mathematical folds.")
     elif is_still_image_mode:
         up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'])
         if up: st.session_state.img_start = Image.open(up).convert("L")
@@ -129,59 +128,62 @@ with st.sidebar:
         up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2")
         if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
-    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset_slider")
+    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset_slider", help="Higher = More particles.")
     p_count = 200000 if quality_preset == "Draft" else 800000 if quality_preset == "Normal" else 1500000
     res_scale = 1.0 if quality_preset == "Draft" else 1.5 if quality_preset == "Normal" else 2.0
         
     with st.expander("Visual Styling", expanded=True):
-        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True)
+        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True, help="Randomize style.")
         st.divider()
-        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input")
-        invert_colors = st.checkbox("Light Mode Render", key="invert_colors_check")
-        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure_slider")
-        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma_slider")
-        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain_slider")
-        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur_slider")
+        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input", help="Sand distribution seed.")
+        invert_colors = st.checkbox("Light Mode Render", key="invert_colors_check", help="Dark sand on white.")
+        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure_slider", help="Brightness/Glow intensity.")
+        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma_slider", help="Contrast falloff.")
+        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain_slider", help="Flicker-free noise.")
+        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur_slider", help="Softness.")
         
     st.divider()
-    execute_render = st.button("EXECUTE RENDER", type="primary", use_container_width=True)
+    execute_render = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Generate Asset.")
     st.button("Clear History", on_click=reset_app, use_container_width=True)
 
 # --- RENDER EXECUTION ---
 if execute_render:
     with preview_placeholder.container():
         st.markdown('<div class="hero-container">', unsafe_allow_html=True)
-        bar = st.progress(0, text="Simulating Sands of Time...")
+        bar = st.progress(0, text="Simulating High-Fidelity Sands...")
         
-        # --- RENDER LOGIC START ---
         frames_list = []
         final_seed = seed_input if seed_input > 0 else np.random.randint(0, 999999)
         rng_main = np.random.RandomState(final_seed)
 
         if is_ribbon_mode:
-            # Ribbon Math logic
-            import math
+            # Reverting to better Ribbon math
             def generate_dna(c, s):
                 np.random.seed(s)
                 p = []
                 sc = np.random.uniform(1.8, 2.5)
                 for i in range(1, c + 1):
-                    p.append({'freq': i, 'amp_a': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'amp_b': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'phases': np.random.uniform(0, 2*np.pi, 3)})
-                return p
+                    p.append({
+                        'freq': i, 
+                        'amp_a': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 
+                        'amp_b': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 
+                        'phases': np.random.uniform(0, 2*np.pi, 3)
+                    })
+                return p, np.radians(np.random.uniform(20, 80)), np.radians(np.random.uniform(0, 360))
             
             width, height = (1920, 1080) if "16:9" in aspect_ratio else (1080, 1920) if "9:16" in aspect_ratio else (1080, 1080)
-            dna = generate_dna(complexity, final_seed)
+            dna, tx, ty = generate_dna(complexity, final_seed)
             t_vals = rng_main.rand(p_count) * 2 * np.pi
             total_frames = 100 if "Animation" in render_mode else 1
             bounds_x, bounds_y = [-5, 5], [-5, 5]
             iw, ih = width, height
             sx, sy, sz = [rng_main.normal(0, 0.15, p_count) for _ in range(3)]
+            thickness = (np.sin(t_vals * 2.0 + rng_main.rand()*6) + 1.2) * 0.5
         elif is_morph_mode or is_still_image_mode:
-            # Image sampling logic
             def sample_img(pil_img, n, s):
-                arr = np.power(np.array(pil_img).astype(float) / 255.0, 2.0)
+                arr = np.power(np.array(pil_img).astype(float) / 255.0, 2.2)
                 total = np.sum(arr)
-                cdf = np.cumsum(arr.flatten()) / total
+                cdf = np.cumsum(arr.flatten()) / (total + 1e-10)
                 indices = np.searchsorted(cdf, np.random.RandomState(s).rand(n))
                 y, x = np.unravel_index(indices, arr.shape)
                 return x.astype(float), (arr.shape[0] - y.astype(float)), pil_img.width, pil_img.height
@@ -196,14 +198,21 @@ if execute_render:
         for i in range(total_frames):
             prog = i / total_frames if total_frames > 1 else 0.0
             if is_ribbon_mode:
-                # Calculate ribbon positions
                 x, y, z = np.zeros_like(t_vals), np.zeros_like(t_vals), np.zeros_like(t_vals)
                 for l in dna:
-                    x += (l['amp_a'][0] * np.cos(prog*2*np.pi) + l['amp_b'][0] * np.sin(prog*2*np.pi)) * np.cos(l['freq'] * t_vals + l['phases'][0])
-                    y += (l['amp_a'][1] * np.cos(prog*2*np.pi) + l['amp_b'][1] * np.sin(prog*2*np.pi)) * np.sin(l['freq'] * t_vals + l['phases'][1])
-                    z += (l['amp_a'][2] * np.cos(prog*2*np.pi) + l['amp_b'][2] * np.sin(prog*2*np.pi)) * np.cos(l['freq'] * t_vals + l['phases'][2])
-                xr, yr = x, y # Simple projection
-                grain_seed, w_final = final_seed + i, None
+                    ca, sa = np.cos(prog*2*np.pi), np.sin(prog*2*np.pi)
+                    ax, ay, az = [l['amp_a'][j] * ca + l['amp_b'][j] * sa for j in range(3)]
+                    x += ax * np.cos(l['freq'] * t_vals + l['phases'][0])
+                    y += ay * np.sin(l['freq'] * t_vals + l['phases'][1])
+                    z += az * np.cos(l['freq'] * t_vals + l['phases'][2])
+                
+                # Apply thickness and rotation
+                x, y, z = x + sx*thickness, y + sy*thickness, z + sz*thickness
+                yr_r = y * np.cos(tx) - z * np.sin(tx)
+                zr_r = y * np.sin(tx) + z * np.cos(tx)
+                xr, yr = x * np.cos(ty) + zr_r * np.sin(ty), yr_r
+                w_final = np.exp(-(zr_r - zr_r.min()) / (zr_r.max() - zr_r.min() + 1e-6) * 1.5)
+                grain_seed = final_seed + i
             elif is_morph_mode:
                 if i < 25: grain_seed, tm, n = final_seed, 0.0, 0.0
                 elif i > 100: grain_seed, tm, n = final_seed + 999, 1.0, 0.0
@@ -214,44 +223,59 @@ if execute_render:
             else:
                 xr, yr, grain_seed, w_final = ix1, iy1, final_seed, None
 
-            # Render heatmap
+            # RENDER: Back to Log-Power Hybrid for better "Glow"
             h_map, _, _ = np.histogram2d(xr, yr, bins=[int(iw*res_scale/2), int(ih*res_scale/2)], range=[bounds_x, bounds_y], weights=w_final)
             if blur > 0: h_map = gaussian_filter(h_map, sigma=blur)
-            h_map = np.power(h_map / (np.max(h_map) + 1e-10), gamma)
+            
+            # THE GLOW MATH
+            h_map = h_map / (np.max(h_map) + 1e-10)
+            h_map = np.log1p(h_map * exposure * 10) / np.log1p(exposure * 10)
+            h_map = np.power(h_map, gamma)
+            
             if grain > 0: h_map *= np.random.RandomState(grain_seed).normal(1.0, grain, h_map.shape)
             h_map = np.clip(h_map, 0, 1)
             if invert_colors: h_map = 1.0 - h_map
-            frames_list.append((resize(h_map.T, (1080, int(1080 * iw/ih))) * 255).astype(np.uint8))
+            
+            # Flip and resize
+            final_f = np.flipud(h_map.T)
+            frames_list.append((resize(final_f, (1080, int(1080 * iw/ih))) * 255).astype(np.uint8))
             bar.progress((i+1)/total_frames)
 
-        # Finalize asset
         b = io.BytesIO()
         if len(frames_list) > 1: imageio.mimsave(b, frames_list, format='GIF', fps=25, loop=0); fmt = "gif"
         else: imageio.imwrite(b, frames_list[0], format='PNG'); fmt = "png"
         
         meta = {"Mode": render_mode, "Seed": final_seed, "Exp": exposure, "Gamma": gamma, "Grain": grain, "Blur": blur, "Dens": quality_preset, "Inv": invert_colors}
+        if is_ribbon_mode: meta["Complexity"] = complexity
         st.session_state.history.insert(0, {"data": b.getvalue(), "fmt": fmt, "time": time.strftime("%H:%M:%S"), "meta": meta})
-        # --- RENDER LOGIC END ---
-        
         st.rerun()
 
-# DISPLAY HERO (If not rendering)
+# DISPLAY HERO
 elif st.session_state.history:
     latest = st.session_state.history[0]
     with preview_placeholder.container():
         st.markdown('<div class="hero-container">', unsafe_allow_html=True)
-        st.image(latest['data'], use_container_width=True, caption=f"Latest: {latest['meta']['Mode']} | {latest['time']}")
+        st.image(latest['data'], use_container_width=True, caption=f"Latest Result: {latest['meta']['Mode']} | {latest['time']}")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- GALLERY ---
+# GALLERY & EXPORT
 if st.session_state.history:
     st.divider()
+    g_col1, g_col2 = st.columns([3, 1])
+    with g_col1: st.subheader("Your Gallery")
+    with g_col2:
+        zip_data = io.BytesIO()
+        with zipfile.ZipFile(zip_data, "w") as zf:
+            for i, item in enumerate(st.session_state.history):
+                zf.writestr(f"sand_{i}.{item['fmt']}", item['data'])
+        st.download_button("📦 DOWNLOAD ALL (ZIP)", data=zip_data.getvalue(), file_name="sands_of_time.zip", use_container_width=True)
+
     cols = st.columns(3)
     for idx, item in enumerate(st.session_state.history):
         with cols[idx % 3]:
             st.image(item['data'], use_container_width=True)
             m = item['meta']
-            st.markdown(f"""<div class="metadata-card"><b>{m['Mode']}</b><br>Seed: {m['Seed']}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="metadata-card"><b>{m['Mode']}</b><br>Seed: {m['Seed']} | Exp: {m['Exp']}</div>""", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
             with c1: st.download_button("💾", item['data'], f"sand_{idx}.{item['fmt']}", key=f"dl_{idx}")
             with c2: st.button("🔄", key=f"res_{idx}", on_click=callback_restore, args=(m,))
