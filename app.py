@@ -44,7 +44,7 @@ with st.sidebar:
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
     is_still_image_mode = render_mode == "Image to Sand (Still)"
-    is_image_mode = is_morph_mode or is_still_image_mode
+    is_any_image_mode = is_morph_mode or is_still_image_mode
 
     if is_ribbon_mode:
         aspect_ratio = st.selectbox("Aspect Ratio", ["16:9 (Landscape)", "9:16 (Portrait)", "1:1 (Square)"], index=0)
@@ -66,7 +66,8 @@ with st.sidebar:
     elif quality_preset == "Normal": p_count, res_scale = 800_000, 1.5
     else: p_count, res_scale = 1_500_000, 2.0 
         
-    with st.expander("Look Development"):
+    with st.expander("Look Development", expanded=True):
+        seed_val = st.number_input("Manual Seed (0 = Random)", min_value=0, value=0, step=1)
         invert_colors = st.checkbox("Invert Colors", value=False)
         exposure = st.slider("Exposure", 1.0, 5.0, 2.8)
         gamma = st.slider("Gamma", 0.3, 1.0, 0.65)
@@ -79,7 +80,7 @@ with st.sidebar:
     with col_res:
         st.button("Reset", on_click=reset_app, use_container_width=True)
 
-# --- RESTORED RIBBON ENGINE ---
+# --- CORE MATH ENGINE ---
 
 def get_resolution(aspect_name):
     if "16:9" in aspect_name: return 1920, 1080
@@ -126,39 +127,38 @@ def run_render():
     status = st.empty()
     bar = st.progress(0)
     frames_list = []
-    eff_seed = np.random.randint(0, 99999)
-    rng_main = np.random.RandomState(eff_seed)
+    
+    # Handle Seed
+    final_seed = seed_val if seed_val > 0 else np.random.randint(0, 999999)
+    rng_main = np.random.RandomState(final_seed)
 
     if is_ribbon_mode:
         width, height = get_resolution(aspect_ratio)
-        dna = generate_ribbon_dna(complexity, eff_seed)
+        dna = generate_ribbon_dna(complexity, final_seed)
         t_vals = rng_main.rand(p_count) * 2 * np.pi
         total_frames = 100 if "Animation" in render_mode else 1
         bounds_x, bounds_y = [-5, 5], [-5, 5]
         iw, ih = width, height
-        # RESTORED SCATTER
         thickness = (np.sin(t_vals * 2.0 + rng_main.rand()*6) + 1.2) * 0.5
         sx, sy, sz = rng_main.normal(0, 0.15, p_count), rng_main.normal(0, 0.15, p_count), rng_main.normal(0, 0.15, p_count)
     elif is_morph_mode:
         w_s, h_s = st.session_state.img_start.size
-        ix1, iy1, iw, ih = sample_image_density(st.session_state.img_start, p_count, eff_seed)
-        ix2, iy2, _, _ = sample_image_density(st.session_state.img_end.resize((w_s, h_s)), p_count, eff_seed+1)
+        ix1, iy1, iw, ih = sample_image_density(st.session_state.img_start, p_count, final_seed)
+        ix2, iy2, _, _ = sample_image_density(st.session_state.img_end.resize((w_s, h_s)), p_count, final_seed + 1)
         total_frames, bounds_x, bounds_y = 125, [0, iw], [0, ih]
     else: # Still Image
-        ix1, iy1, iw, ih = sample_image_density(st.session_state.img_start, p_count, eff_seed)
+        ix1, iy1, iw, ih = sample_image_density(st.session_state.img_start, p_count, final_seed)
         total_frames, bounds_x, bounds_y = 1, [0, iw], [0, ih]
 
     for i in range(total_frames):
         prog = i / total_frames if total_frames > 1 else 0.0
         if is_ribbon_mode:
             xs, ys, zs = calc_ribbon_spine(t_vals, dna, prog)
-            # Add scatter to spine
             x, y, z = xs + sx*thickness, ys + sy*thickness, zs + sz*thickness
             tx, ty = dna['tilt_x'], dna['tilt_y']
             yr_r = y * np.cos(tx) - z * np.sin(tx)
             zr_r = y * np.sin(tx) + z * np.cos(tx)
             xr, yr = x * np.cos(ty) + zr_r * np.sin(ty), yr_r
-            # RESTORED DEPTH SHADING
             w_final = np.exp(-(zr_r - zr_r.min()) / (zr_r.max() - zr_r.min() + 1e-6) * 1.5)
         elif is_morph_mode:
             if i < 25: t_m, noise = 0.0, 0.0
@@ -175,7 +175,7 @@ def run_render():
         if blur > 0: heatmap = gaussian_filter(heatmap, sigma=blur)
         heatmap = heatmap / (np.max(heatmap) + 1e-10)
         heatmap = np.power(np.log1p(heatmap * exposure * 10) / np.log1p(exposure * 10), gamma)
-        if grain > 0: heatmap *= np.random.normal(1.0, grain, heatmap.shape)
+        if grain > 0: heatmap *= rng_main.normal(1.0, grain, heatmap.shape)
         heatmap = np.clip(heatmap, 0, 1)
         if invert_colors: heatmap = 1.0 - heatmap
         
