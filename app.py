@@ -12,44 +12,23 @@ import random
 # PAGE CONFIG
 st.set_page_config(page_title="Sands of Time Generator", page_icon="⏳", layout="wide")
 
-# UI STYLING
+# UI STYLING (DARK MODE)
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117 !important; color: #e0e0e0 !important; }
     [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 1px solid #30363d; }
-    
-    /* Metadata Card Styling */
     .metadata-card { 
         background-color: rgba(255, 255, 255, 0.05); 
-        padding: 12px; 
-        border-radius: 8px; 
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 0.8rem; 
-        color: #bdc1c6; 
-        margin-top: 8px;
-        margin-bottom: 12px;
-        line-height: 1.4;
+        padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.8rem; color: #bdc1c6; margin-top: 8px; margin-bottom: 12px;
     }
-    
-    /* Hero Preview Container */
     .hero-container {
-        border-radius: 15px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        margin-top: 1rem;
-        margin-bottom: 2rem;
-        background-color: #000000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        border-radius: 15px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 1rem; margin-bottom: 2rem; background-color: #000000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    
-    h1, h2, h3 { color: #ffffff !important; font-weight: 700 !important; }
-    div.stButton > button {
-        background-color: #238636 !important; color: white !important;
-        border-radius: 6px !important; border: none !important;
-    }
+    h1, h2, h3 { color: #ffffff !important; }
+    div.stButton > button { background-color: #238636 !important; color: white !important; border-radius: 6px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -59,15 +38,9 @@ if 'img_start' not in st.session_state: st.session_state.img_start = None
 if 'img_end' not in st.session_state: st.session_state.img_end = None
 
 keys_defaults = {
-    'render_mode_radio': "Still Ribbon",
-    'seed_val_input': 0,
-    'exposure_slider': 2.8,
-    'gamma_slider': 0.65,
-    'grain_slider': 0.35,
-    'blur_slider': 0.6,
-    'invert_colors_check': False,
-    'complexity_slider': 3,
-    'quality_preset_slider': "Normal"
+    'render_mode_radio': "Still Ribbon", 'seed_val_input': 0, 'exposure_slider': 2.8,
+    'gamma_slider': 0.65, 'grain_slider': 0.35, 'blur_slider': 0.6,
+    'invert_colors_check': False, 'complexity_slider': 3, 'quality_preset_slider': "Normal"
 }
 for key, val in keys_defaults.items():
     if key not in st.session_state: st.session_state[key] = val
@@ -79,8 +52,7 @@ def callback_randomize():
     st.session_state['gamma_slider'] = round(random.uniform(0.5, 0.8), 2)
     st.session_state['grain_slider'] = round(random.uniform(0.2, 0.5), 2)
     st.session_state['blur_slider'] = round(random.uniform(0.4, 1.2), 1)
-    st.session_state['invert_colors_check'] = False
-    st.toast("Aesthetic Shifted! 🎨")
+    st.toast("New competitors entered the arena! 🎲")
 
 def callback_restore(meta):
     st.session_state['render_mode_radio'] = meta["Mode"]
@@ -102,12 +74,12 @@ def reset_app():
 # --- MAIN PAGE ---
 st.title("⏳ Sands of Time Generator")
 
-with st.expander("📖 Comprehensive Quick Start Guide"):
+with st.expander("📖 Comprehensive Quick Start Guide", expanded=False):
     st.markdown("""
-    1. Choose your **Algorithm** and **Density**.
-    2. Adjust **Exposure** for glow and **Gamma** for contrast.
-    3. Use **Surprise Me** for new styles.
-    4. Hit **EXECUTE RENDER** to see the magic.
+    1. **Algorithm:** 'Ribbons' compete mathematically; 'Images' use your uploads.
+    2. **Surprise Me:** Randomizes the 'Look' (Visual Styling) section.
+    3. **Execute:** Render appears in full size. Use the progress bar to track the simulation.
+    4. **Gallery:** Download, Restore 🔄, or Export a ZIP of your favorites.
     """)
 
 preview_placeholder = st.empty()
@@ -115,59 +87,66 @@ preview_placeholder = st.empty()
 # SIDEBAR
 with st.sidebar:
     st.header("Studio Controls")
-    render_mode = st.radio("Core Algorithm", ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], key="render_mode_radio")
+    render_mode = st.radio("Core Algorithm", ["Still Ribbon", "Animation Loop (Ribbon)", "Image to Sand (Still)", "Image Morph (Animation)"], key="render_mode_radio", help="Select how the sands are formed.")
     
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
     is_still_image_mode = render_mode == "Image to Sand (Still)"
     
     if is_ribbon_mode:
-        aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0)
-        complexity = st.slider("Complexity", 2, 8, key="complexity_slider")
+        aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1"], index=0, help="The frame of the output.")
+        complexity = st.slider("Complexity", 2, 8, key="complexity_slider", help="Higher values create more intense mathematical 'competitions'.")
     elif is_still_image_mode:
-        up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'])
+        up = st.file_uploader("Source Image", type=['png', 'jpg', 'jpeg'], help="Particles gather in bright areas.")
         if up: st.session_state.img_start = Image.open(up).convert("L")
     elif is_morph_mode:
-        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1")
+        up1 = st.file_uploader("Start Target", type=['png', 'jpg'], key="up1", help="Initial shape.")
         if up1: st.session_state.img_start = Image.open(up1).convert("L")
-        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2")
+        up2 = st.file_uploader("End Target", type=['png', 'jpg'], key="up2", help="Target shape.")
         if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
-    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset_slider")
+    quality_preset = st.select_slider("Particle Density", options=["Draft", "Normal", "Ultra"], key="quality_preset_slider", help="Draft: 200k. Normal: 800k. Ultra: 1.5M.")
     p_count = 200000 if quality_preset == "Draft" else 800000 if quality_preset == "Normal" else 1500000
     res_scale = 1.0 if quality_preset == "Draft" else 1.5 if quality_preset == "Normal" else 2.0
         
     with st.expander("Visual Styling", expanded=True):
-        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True)
+        st.button("🎲 Surprise Me!", on_click=callback_randomize, use_container_width=True, help="Randomize the visual look.")
         st.divider()
-        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input")
-        invert_colors = st.checkbox("Light Mode Render", key="invert_colors_check")
-        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure_slider")
-        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma_slider")
-        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain_slider")
-        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur_slider")
+        seed_input = st.number_input("Seed", min_value=0, step=1, key="seed_val_input", help="The DNA of the sand distribution.")
+        invert_colors = st.checkbox("Light Mode Render", key="invert_colors_check", help="Dark sand on white.")
+        exposure = st.slider("Exposure", 1.0, 5.0, step=0.1, key="exposure_slider", help="Glow intensity.")
+        gamma = st.slider("Gamma", 0.3, 1.0, step=0.05, key="gamma_slider", help="Mid-tone contrast.")
+        grain = st.slider("Grain", 0.0, 1.0, step=0.05, key="grain_slider", help="Organic flicker-free noise.")
+        blur = st.slider("Blur", 0.0, 3.0, step=0.1, key="blur_slider", help="Softness.")
         
     st.divider()
-    execute_render = st.button("EXECUTE RENDER", type="primary", use_container_width=True)
+    execute_render = st.button("EXECUTE RENDER", type="primary", use_container_width=True, help="Simulate the Sands of Time.")
     st.button("Clear History", on_click=reset_app, use_container_width=True)
 
 # --- RENDER ENGINE ---
 if execute_render:
     with preview_placeholder.container():
         st.markdown('<div class="hero-container">', unsafe_allow_html=True)
-        bar = st.progress(0, text="Simulating Cinematic Sands...")
+        bar = st.progress(0, text="Calculating Mathematical Competition...")
         
         frames_list = []
         final_seed = seed_input if seed_input > 0 else np.random.randint(0, 999999)
         rng_main = np.random.RandomState(final_seed)
 
         if is_ribbon_mode:
+            # RESTORED COMPETITION MATH
             def generate_dna(c, s):
                 np.random.seed(s)
                 p = []
                 sc = np.random.uniform(1.8, 2.5)
                 for i in range(1, c + 1):
-                    p.append({'freq': i, 'amp_a': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'amp_b': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 'phases': np.random.uniform(0, 2*np.pi, 3)})
+                    # Each 'i' represents a competitor in the wave arena
+                    p.append({
+                        'freq': i, 
+                        'amp_a': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 
+                        'amp_b': np.random.uniform(-1, 1, 3) * sc / (i**0.8), 
+                        'phases': np.random.uniform(0, 2*np.pi, 3)
+                    })
                 return p, np.radians(np.random.uniform(20, 80)), np.radians(np.random.uniform(0, 360))
             
             width, height = (1920, 1080) if "16:9" in aspect_ratio else (1080, 1920) if "9:16" in aspect_ratio else (1080, 1080)
@@ -195,11 +174,16 @@ if execute_render:
         for i in range(total_frames):
             prog = i / total_frames if total_frames > 1 else 0.0
             if is_ribbon_mode:
+                # COMPETING WAVEFORMS
                 x, y, z = np.zeros_like(t_vals), np.zeros_like(t_vals), np.zeros_like(t_vals)
+                ca, sa = np.cos(prog*2*np.pi), np.sin(prog*2*np.pi)
                 for l in dna:
-                    ca, sa = np.cos(prog*2*np.pi), np.sin(prog*2*np.pi)
                     ax, ay, az = [l['amp_a'][j] * ca + l['amp_b'][j] * sa for j in range(3)]
-                    x, y, z = x + ax*np.cos(l['freq']*t_vals+l['phases'][0]), y + ay*np.sin(l['freq']*t_vals+l['phases'][1]), z + az*np.cos(l['freq']*t_vals+l['phases'][2])
+                    x += ax * np.cos(l['freq'] * t_vals + l['phases'][0])
+                    y += ay * np.sin(l['freq'] * t_vals + l['phases'][1])
+                    z += az * np.cos(l['freq'] * t_vals + l['phases'][2])
+                
+                # Apply depth and thickness
                 x, y, z = x + sx*thickness, y + sy*thickness, z + sz*thickness
                 yr_r, zr_r = y*np.cos(tx)-z*np.sin(tx), y*np.sin(tx)+z*np.cos(tx)
                 xr, yr = x*np.cos(ty)+zr_r*np.sin(ty), yr_r
@@ -211,6 +195,7 @@ if execute_render:
                 xr, yr, w_final = ix1*(1-tm) + ix2*tm + rng_main.normal(0, n, p_count), iy1*(1-tm) + iy2*tm + rng_main.normal(0, n, p_count), None
             else: xr, yr, grain_seed, w_final = ix1, iy1, final_seed, None
 
+            # RENDER Heatmap (CINEMATIC GLOW)
             h_map, _, _ = np.histogram2d(xr, yr, bins=[int(iw*res_scale/2), int(ih*res_scale/2)], range=[bounds_x, bounds_y], weights=w_final)
             if blur > 0: h_map = gaussian_filter(h_map, sigma=blur)
             h_map = h_map / (np.max(h_map) + 1e-10)
@@ -231,7 +216,7 @@ if execute_render:
         st.session_state.history.insert(0, {"data": b.getvalue(), "fmt": fmt, "time": time.strftime("%H:%M:%S"), "meta": meta})
         st.rerun()
 
-# DISPLAY HERO
+# HERO DISPLAY
 elif st.session_state.history:
     latest = st.session_state.history[0]
     with preview_placeholder.container():
@@ -239,24 +224,25 @@ elif st.session_state.history:
         st.image(latest['data'], use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# GALLERY
+# GALLERY & EXPORT
 if st.session_state.history:
     st.divider()
-    st.subheader("Your Gallery")
+    g_col1, g_col2 = st.columns([3, 1])
+    with g_col1: st.subheader("Your Gallery")
+    with g_col2:
+        z_data = io.BytesIO()
+        with zipfile.ZipFile(z_data, "w") as zf:
+            for i, item in enumerate(st.session_state.history):
+                zf.writestr(f"sand_{i}.{item['fmt']}", item['data'])
+        st.download_button("📦 DOWNLOAD ALL (ZIP)", data=z_data.getvalue(), file_name="sands_of_time.zip", use_container_width=True)
+
     cols = st.columns(3)
     for idx, item in enumerate(st.session_state.history):
         with cols[idx % 3]:
             st.image(item['data'], use_container_width=True)
             m = item['meta']
-            # ENHANCED METADATA DISPLAY
-            st.markdown(f"""
-            <div class="metadata-card">
-            <b>{m['Mode']}</b> • {item['time']}<br>
-            Seed: {m['Seed']} | Exp: {m['Exp']} | Gamma: {m['Gamma']}<br>
-            Grain: {m['Grain']} | Blur: {m['Blur']} | Density: {m['Dens']}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metadata-card"><b>{m['Mode']}</b> • {item['time']}<br>Seed: {m['Seed']} | Exp: {m['Exp']} | Gamma: {m['Gamma']}<br>Grain: {m['Grain']} | Blur: {m['Blur']} | Density: {m['Dens']}</div>""", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
             with c1: st.download_button("💾", item['data'], f"sand_{idx}.{item['fmt']}", key=f"dl_{idx}")
-            with c2: st.button("🔄", key=f"res_{idx}", on_click=callback_restore, args=(m,))
-            with c3: st.button("🗑️", key=f"del_{idx}", on_click=lambda i=idx: (st.session_state.history.pop(i), st.rerun()))
+            with c2: st.button("🔄", key=f"res_{idx}", on_click=callback_restore, args=(m,), help="Restore settings")
+            with c3: st.button("🗑️", key=f"del_{idx}", on_click=lambda i=idx: (st.session_state.history.pop(i), st.rerun()), help="Delete asset")
