@@ -44,7 +44,7 @@ with st.sidebar:
     is_ribbon_mode = "Ribbon" in render_mode
     is_morph_mode = "Morph" in render_mode
     is_still_image_mode = render_mode == "Image to Sand (Still)"
-    is_any_image_mode = is_morph_mode or is_still_image_mode
+    is_image_mode = is_morph_mode or is_still_image_mode
 
     if is_ribbon_mode:
         aspect_ratio = st.selectbox("Aspect Ratio", ["16:9 (Landscape)", "9:16 (Portrait)", "1:1 (Square)"], index=0)
@@ -62,9 +62,9 @@ with st.sidebar:
             if up2: st.session_state.img_end = Image.open(up2).convert("L")
 
     quality_preset = st.select_slider("Density", options=["Draft", "Normal", "Ultra"], value="Normal")
-    if quality_preset == "Draft": p_count, res_scale, candidates = 200_000, 1.0, 50
-    elif quality_preset == "Normal": p_count, res_scale, candidates = 800_000, 1.5, 150
-    else: p_count, res_scale, candidates = 1_200_000, 2.0, 400 
+    if quality_preset == "Draft": p_count, res_scale = 200_000, 1.0 
+    elif quality_preset == "Normal": p_count, res_scale = 800_000, 1.5
+    else: p_count, res_scale = 1_500_000, 2.0 
         
     with st.expander("Look Development"):
         invert_colors = st.checkbox("Invert Colors", value=False)
@@ -79,7 +79,7 @@ with st.sidebar:
     with col_res:
         st.button("Reset", on_click=reset_app, use_container_width=True)
 
-# --- CORE MATH ENGINE ---
+# --- RESTORED RIBBON ENGINE ---
 
 def get_resolution(aspect_name):
     if "16:9" in aspect_name: return 1920, 1080
@@ -97,7 +97,7 @@ def generate_ribbon_dna(complexity_val, seed):
         params.append({'freq': i, 'amp_a': amp_a, 'amp_b': amp_b, 'phases': np.random.uniform(0, 2*np.pi, 3)})
     return {'params': params, 'tilt_x': np.radians(np.random.uniform(20, 80)), 'tilt_y': np.radians(np.random.uniform(0, 360))}
 
-def calc_ribbon(t, dna, prog):
+def calc_ribbon_spine(t, dna, prog):
     x, y, z = np.zeros_like(t), np.zeros_like(t), np.zeros_like(t)
     angle = prog * 2 * np.pi
     cos_a, sin_a = np.cos(angle), np.sin(angle)
@@ -134,8 +134,11 @@ def run_render():
         dna = generate_ribbon_dna(complexity, eff_seed)
         t_vals = rng_main.rand(p_count) * 2 * np.pi
         total_frames = 100 if "Animation" in render_mode else 1
-        bounds_x, bounds_y = [-4, 4], [-4, 4]
+        bounds_x, bounds_y = [-5, 5], [-5, 5]
         iw, ih = width, height
+        # RESTORED SCATTER
+        thickness = (np.sin(t_vals * 2.0 + rng_main.rand()*6) + 1.2) * 0.5
+        sx, sy, sz = rng_main.normal(0, 0.15, p_count), rng_main.normal(0, 0.15, p_count), rng_main.normal(0, 0.15, p_count)
     elif is_morph_mode:
         w_s, h_s = st.session_state.img_start.size
         ix1, iy1, iw, ih = sample_image_density(st.session_state.img_start, p_count, eff_seed)
@@ -148,12 +151,15 @@ def run_render():
     for i in range(total_frames):
         prog = i / total_frames if total_frames > 1 else 0.0
         if is_ribbon_mode:
-            x, y, z = calc_ribbon(t_vals, dna, prog)
+            xs, ys, zs = calc_ribbon_spine(t_vals, dna, prog)
+            # Add scatter to spine
+            x, y, z = xs + sx*thickness, ys + sy*thickness, zs + sz*thickness
             tx, ty = dna['tilt_x'], dna['tilt_y']
             yr_r = y * np.cos(tx) - z * np.sin(tx)
             zr_r = y * np.sin(tx) + z * np.cos(tx)
             xr, yr = x * np.cos(ty) + zr_r * np.sin(ty), yr_r
-            w_final = np.exp(-(zr_r - zr_r.min()) / (zr_r.max() - zr_r.min() + 1e-6) * 0.9)
+            # RESTORED DEPTH SHADING
+            w_final = np.exp(-(zr_r - zr_r.min()) / (zr_r.max() - zr_r.min() + 1e-6) * 1.5)
         elif is_morph_mode:
             if i < 25: t_m, noise = 0.0, 0.0
             elif i > 100: t_m, noise = 1.0, 0.0
